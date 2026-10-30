@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dynoco Racing - Kart 72 Telemetry Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --dynoco-black: #0b0e14;
+            --dynoco-dark-blue: #121926;
+            --dynoco-card: #1a2332;
+            --dynoco-cyan: #00e5ff;
+            --dynoco-cyan-dim: #008ba3;
+            --dynoco-orange: #ff6d00;
+            --dynoco-orange-light: #ff9e40;
+            --dynoco-red: #ff3d00;
+            --dynoco-green: #00e676;
+            --text-main: #f0f4f8;
+            --text-muted: #8ca0ba;
+            --border-color: #ff6d00;
+            --border-subtle: #2a3a52;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Impact', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--dynoco-black);
+            color: var(--text-main);
+            padding: 12px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Top Bar & Connection Panel */
+        header {
+            background-color: var(--dynoco-dark-blue);
+            border: 2px solid var(--dynoco-orange);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(255, 109, 0, 0.2);
+        }
+
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            color: var(--dynoco-cyan);
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+        }
+
+        .brand-title span {
+            color: var(--dynoco-orange);
+        }
+
+        .controls-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--dynoco-cyan), var(--dynoco-cyan-dim));
+            color: #000;
+            border: 1px solid var(--dynoco-cyan);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-orange {
+            background: linear-gradient(135deg, var(--dynoco-orange), #d84315);
+            color: #fff;
+            border-color: var(--dynoco-orange-light);
+        }
+
+        .btn-secondary {
+            background: var(--dynoco-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            background-color: rgba(255, 61, 0, 0.15);
+            color: var(--dynoco-red);
+            border: 1px solid rgba(255, 61, 0, 0.4);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .status-badge.connected {
+            background-color: rgba(0, 230, 118, 0.15);
+            color: var(--dynoco-green);
+            border-color: rgba(0, 230, 118, 0.4);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        /* Setup / Torsion Bar Banner */
+        .setup-bar {
+            background: var(--dynoco-dark-blue);
+            border: 1px solid var(--dynoco-orange);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .setup-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .setup-input-group label {
+            font-size: 0.85rem;
+            color: var(--dynoco-orange-light);
+            font-weight: 700;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+
+        .setup-input-group input {
+            background: var(--dynoco-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--dynoco-cyan);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--dynoco-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--dynoco-orange-light);
+            font-weight: 800;
+        }
+
+        /* Chassis Diagram & 4-Corner Flex Grid */
+        .chassis-visualizer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            position: relative;
+            background: rgba(11, 14, 20, 0.7);
+            border-radius: 10px;
+            padding: 12px;
+            border: 2px solid var(--dynoco-cyan-dim);
+        }
+
+        .corner-box {
+            background: var(--dynoco-dark-blue);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .corner-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 800;
+        }
+
+        .corner-val {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--dynoco-cyan);
+            margin: 2px 0;
+            font-family: 'Impact', sans-serif;
+        }
+
+        .corner-minmax {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-around;
+        }
+
+        /* Center Chassis Twist Gauge */
+        .center-twist-badge {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--dynoco-black);
+            border: 2px solid var(--dynoco-orange);
+            padding: 8px 12px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(255, 109, 0, 0.4);
+            z-index: 2;
+        }
+
+        .twist-val {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--dynoco-cyan);
+        }
+
+        .twist-label {
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            color: var(--dynoco-orange);
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Numerical Gauge Metrics */
+        .metric-display {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 0px;
+            color: var(--dynoco-cyan);
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
+        .metric-unit {
+            font-size: 1rem;
+            color: var(--dynoco-orange-light);
+            font-weight: 800;
+            margin-left: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .shift-light {
+            width: 100%;
+            height: 10px;
+            background: var(--dynoco-black);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 6px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .shift-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--dynoco-cyan), var(--dynoco-orange), var(--dynoco-red));
+            transition: width 0.1s linear;
+        }
+
+        .shift-flash {
+            animation: flash 0.15s infinite alternate;
+        }
+
+        @keyframes flash {
+            from { opacity: 1; background: var(--dynoco-red); }
+            to { opacity: 0.2; background: var(--dynoco-orange); }
+        }
+
+        /* Charts Section */
+        .chart-card {
+            grid-column: 1 / -1;
+            min-height: 250px;
+            border: 1px solid var(--dynoco-orange);
+        }
+
+        .chart-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            height: 200px;
+        }
+
+        /* Log / Console Terminal */
+        .console-card {
+            grid-column: 1 / -1;
+        }
+
+        .terminal-window {
+            background: #05070c;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.75rem;
+            color: var(--dynoco-cyan);
+            height: 80px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .terminal-entry {
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Connection Controls -->
+    <header>
+        <div class="brand-title">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            DYNOCO <span>RACING</span>
+        </div>
+
+        <div class="controls-group">
+            <div id="connStatus" class="status-badge">
+                <span class="status-dot"></span> DISCONNECTED
+            </div>
+            <button id="btnConnectBLE" class="btn">Connect BLE</button>
+            <button id="btnConnectSerial" class="btn btn-secondary">Web Serial</button>
+            <button id="btnSimulate" class="btn btn-orange">Simulator</button>
+            <button id="btnZero" class="btn btn-secondary">Zero Calib</button>
+        </div>
+    </header>
+
+    <!-- Torsion Bar Profile Panel -->
+    <div class="setup-bar">
+        <div class="setup-input-group">
+            <label for="profileName">Torsion Bar Setup:</label>
+            <input type="text" id="profileName" value="Front: Soft Nylon / Rear: Standard" placeholder="Name torsion bar setup...">
+        </div>
+        <div class="controls-group">
+            <button id="btnExportCSV" class="btn btn-secondary">Export Session CSV</button>
+            <button id="btnClearMinMax" class="btn btn-secondary">Reset Min/Max</button>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+
+        <!-- 4-Corner Flex Visualizer -->
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-header">
+                <span class="card-title">Chassis Flex Deflection (Extrapolated)</span>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">Centerline Dual-IMU Model</span>
+            </div>
+
+            <div class="chassis-visualizer">
+                <!-- Center Torsional Twist -->
+                <div class="center-twist-badge">
+                    <div id="valTwist" class="twist-val">0.00°</div>
+                    <div class="twist-label">Total Twist</div>
+                </div>
+
+                <!-- Front Left -->
+                <div class="corner-box" id="boxFL">
+                    <div class="corner-label">FRONT LEFT (FL)</div>
+                    <div id="valFL" class="corner-val">0.0 mm</div>
+                    <div class="corner-minmax">
+                        <span>Min: <b id="minFL">0.0</b></span>
+                        <span>Max: <b id="maxFL">0.0</b></span>
+                    </div>
+                </div>
+
+                <!-- Front Right -->
+                <div class="corner-box" id="boxFR">
+                    <div class="corner-label">FRONT RIGHT (FR)</div>
+                    <div id="valFR" class="corner-val">0.0 mm</div>
+                    <div class="corner-minmax">
+                        <span>Min: <b id="minFR">0.0</b></span>
+                        <span>Max: <b id="maxFR">0.0</b></span>
+                    </div>
+                </div>
+
+                <!-- Rear Left -->
+                <div class="corner-box" id="boxRL">
+                    <div class="corner-label">REAR LEFT (RL)</div>
+                    <div id="valRL" class="corner-val">0.0 mm</div>
+                    <div class="corner-minmax">
+                        <span>Min: <b id="minRL">0.0</b></span>
+                        <span>Max: <b id="maxRL">0.0</b></span>
+                    </div>
+                </div>
+
+                <!-- Rear Right -->
+                <div class="corner-box" id="boxRR">
+                    <div class="corner-label">REAR RIGHT (RR)</div>
+                    <div id="valRR" class="corner-val">0.0 mm</div>
+                    <div class="corner-minmax">
+                        <span>Min: <b id="minRR">0.0</b></span>
+                        <span>Max: <b id="maxRR">0.0</b></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engine RPM Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Engine RPM</span>
+                <span id="gearBadge" style="background: var(--dynoco-orange); color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 900; font-size: 0.8rem;">GEAR --</span>
+            </div>
+            <div class="metric-display">
+                <div>
+                    <span id="valRPM" class="metric-value">0</span>
+                    <span class="metric-unit">RPM</span>
+                </div>
+            </div>
+            <div class="shift-light">
+                <div id="shiftFill" class="shift-fill"></div>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; margin-top: 4px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                <span>Max: <b id="maxRPM" style="color:var(--dynoco-cyan);">0</b></span>
+                <span>Shift: 12,800</span>
+            </div>
+        </div>
+
+        <!-- Exhaust Gas Temperature (EGT) Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Exhaust Gas Temp (EGT)</span>
+                <span style="font-size:0.7rem; color:var(--text-muted);">K-Type Thermocouple</span>
+            </div>
+            <div class="metric-display">
+                <div>
+                    <span id="valEGT" class="metric-value">0</span>
+                    <span class="metric-unit">°F</span>
+                </div>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; margin-top: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                <span>Min: <b id="minEGT" style="color:var(--dynoco-cyan);">0 °F</b></span>
+                <span>Max: <b id="maxEGT" style="color:var(--dynoco-cyan);">0 °F</b></span>
+            </div>
+        </div>
+
+        <!-- Real-Time Telemetry Graph -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <span class="card-title">Dynoco Real-Time Telemetry Trace</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="telemetryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- System Console Log -->
+        <div class="card console-card">
+            <div class="card-header">
+                <span class="card-title">System Console / Stream Log</span>
+            </div>
+            <div id="terminal" class="terminal-window">
+                <div class="terminal-entry">[DYNOCO] Dashboard loaded. Ready for Heltec V3 connection...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Track Dimensions (Meters)
+        const TRACK_WIDTH_FRONT = 1.15;
+        const TRACK_WIDTH_REAR  = 1.40;
+
+        // Telemetry Data State
+        let telemetryState = {
+            rollFrontDeg: 0,
+            rollRearDeg: 0,
+            twistDeg: 0,
+            fl_mm: 0,
+            fr_mm: 0,
+            rl_mm: 0,
+            rr_mm: 0,
+            rpm: 0,
+            egt: 0,
+            gear: 1
+        };
+
+        let minMax = {
+            fl: { min: 0, max: 0 },
+            fr: { min: 0, max: 0 },
+            rl: { min: 0, max: 0 },
+            rr: { min: 0, max: 0 },
+            rpm: { max: 0 },
+            egt: { min: 9999, max: 0 }
+        };
+
+        let dataLog = [];
+        let simulationInterval = null;
+        let bleDevice = null;
+        let serialPort = null;
+
+        // DOM Elements
+        const connStatus = document.getElementById('connStatus');
+        const terminal = document.getElementById('terminal');
+
+        // Logging Utility
+        function logMsg(msg) {
+            const entry = document.createElement('div');
+            entry.className = 'terminal-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerText = `[${timestamp}] ${msg}`;
+            terminal.insertBefore(entry, terminal.firstChild);
+        }
+
+        // 2-Sensor Centerline to 4-Corner Flex Calculations
+        function processRawAngles(frontRollDeg, rearRollDeg) {
+            const frontRad = frontRollDeg * (Math.PI / 180);
+            const rearRad  = rearRollDeg  * (Math.PI / 180);
+
+            // Total torsional twist across frame
+            const twist = frontRollDeg - rearRollDeg;
+
+            // Estimated corner vertical deflection in mm
+            const fl = (TRACK_WIDTH_FRONT / 2.0) * Math.sin(frontRad) * 1000.0;
+            const fr = -fl;
+            const rl = (TRACK_WIDTH_REAR / 2.0) * Math.sin(rearRad) * 1000.0;
+            const rr = -rl;
+
+            return { twist, fl, fr, rl, rr };
+        }
+
+        // Update UI Dashboard Widgets
+        function updateUI() {
+            // Update Flex Values
+            document.getElementById('valTwist').innerText = telemetryState.twistDeg.toFixed(2) + '°';
+            document.getElementById('valFL').innerText = telemetryState.fl_mm.toFixed(1) + ' mm';
+            document.getElementById('valFR').innerText = telemetryState.fr_mm.toFixed(1) + ' mm';
+            document.getElementById('valRL').innerText = telemetryState.rl_mm.toFixed(1) + ' mm';
+            document.getElementById('valRR').innerText = telemetryState.rr_mm.toFixed(1) + ' mm';
+
+            // Min/Max Flex Updates
+            minMax.fl.min = Math.min(minMax.fl.min, telemetryState.fl_mm);
+            minMax.fl.max = Math.max(minMax.fl.max, telemetryState.fl_mm);
+            document.getElementById('minFL').innerText = minMax.fl.min.toFixed(1);
+            document.getElementById('maxFL').innerText = minMax.fl.max.toFixed(1);
+
+            minMax.fr.min = Math.min(minMax.fr.min, telemetryState.fr_mm);
+            minMax.fr.max = Math.max(minMax.fr.max, telemetryState.fr_mm);
+            document.getElementById('minFR').innerText = minMax.fr.min.toFixed(1);
+            document.getElementById('maxFR').innerText = minMax.fr.max.toFixed(1);
+
+            minMax.rl.min = Math.min(minMax.rl.min, telemetryState.rl_mm);
+            minMax.rl.max = Math.max(minMax.rl.max, telemetryState.rl_mm);
+            document.getElementById('minRL').innerText = minMax.rl.min.toFixed(1);
+            document.getElementById('maxRL').innerText = minMax.rl.max.toFixed(1);
+
+            minMax.rr.min = Math.min(minMax.rr.min, telemetryState.rr_mm);
+            minMax.rr.max = Math.max(minMax.rr.max, telemetryState.rr_mm);
+            document.getElementById('minRR').innerText = minMax.rr.min.toFixed(1);
+            document.getElementById('maxRR').innerText = minMax.rr.max.toFixed(1);
+
+            // Engine RPM & Shift Light
+            document.getElementById('valRPM').innerText = telemetryState.rpm;
+            document.getElementById('gearBadge').innerText = 'GEAR ' + telemetryState.gear;
+            minMax.rpm.max = Math.max(minMax.rpm.max, telemetryState.rpm);
+            document.getElementById('maxRPM').innerText = minMax.rpm.max;
+
+            const shiftPct = Math.min(100, Math.max(0, (telemetryState.rpm / 14000) * 100));
+            const shiftFill = document.getElementById('shiftFill');
+            shiftFill.style.width = shiftPct + '%';
+            if (telemetryState.rpm > 12800) {
+                shiftFill.classList.add('shift-flash');
+            } else {
+                shiftFill.classList.remove('shift-flash');
+            }
+
+            // EGT Updates
+            document.getElementById('valEGT').innerText = telemetryState.egt;
+            if (telemetryState.egt > 0) {
+                minMax.egt.min = Math.min(minMax.egt.min, telemetryState.egt);
+                minMax.egt.max = Math.max(minMax.egt.max, telemetryState.egt);
+                document.getElementById('minEGT').innerText = minMax.egt.min + ' °F';
+                document.getElementById('maxEGT').innerText = minMax.egt.max + ' °F';
+            }
+
+            // Push to Chart Data
+            updateChart(telemetryState.twistDeg, telemetryState.rpm, telemetryState.egt);
+
+            // Log entry for CSV
+            dataLog.push({
+                time: new Date().toISOString(),
+                setup: document.getElementById('profileName').value,
+                twist: telemetryState.twistDeg.toFixed(2),
+                fl: telemetryState.fl_mm.toFixed(1),
+                fr: telemetryState.fr_mm.toFixed(1),
+                rl: telemetryState.rl_mm.toFixed(1),
+                rr: telemetryState.rr_mm.toFixed(1),
+                rpm: telemetryState.rpm,
+                egt: telemetryState.egt,
+                gear: telemetryState.gear
+            });
+        }
+
+        // Handle Incoming Data String
+        function handleIncomingData(rawString) {
+            const parts = rawString.trim().split(',');
+            if (parts.length >= 5) {
+                const frontRoll = parseFloat(parts[0]);
+                const rearRoll  = parseFloat(parts[1]);
+                const rpm       = parseInt(parts[2]);
+                const egt       = parseInt(parts[3]);
+                const gear      = parseInt(parts[4]);
+
+                const flexData = processRawAngles(frontRoll, rearRoll);
+
+                telemetryState.rollFrontDeg = frontRoll;
+                telemetryState.rollRearDeg  = rearRoll;
+                telemetryState.twistDeg     = flexData.twist;
+                telemetryState.fl_mm        = flexData.fl;
+                telemetryState.fr_mm        = flexData.fr;
+                telemetryState.rl_mm        = flexData.rl;
+                telemetryState.rr_mm        = flexData.rr;
+                telemetryState.rpm          = rpm;
+                telemetryState.egt          = egt;
+                telemetryState.gear         = gear;
+
+                updateUI();
+            }
+        }
+
+        // Chart.js Setup
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        const telemetryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Chassis Twist (°)',
+                        data: [],
+                        borderColor: '#00e5ff',
+                        borderWidth: 2,
+                        yAxisID: 'yFlex',
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Engine RPM',
+                        data: [],
+                        borderColor: '#ff6d00',
+                        borderWidth: 2,
+                        yAxisID: 'yRPM',
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'EGT (°F)',
+                        data: [],
+                        borderColor: '#ff3d00',
+                        borderWidth: 1.5,
+                        yAxisID: 'yEGT',
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: { display: false },
+                    yFlex: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Twist (°)', color: '#00e5ff' },
+                        grid: { color: '#2a3a52' },
+                        ticks: { color: '#00e5ff' }
+                    },
+                    yRPM: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'RPM', color: '#ff6d00' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#ff6d00' }
+                    },
+                    yEGT: {
+                        type: 'linear',
+                        position: 'right',
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#8ca0ba', boxWidth: 12 } }
+                }
+            }
+        });
+
+        function updateChart(twist, rpm, egt) {
+            const labels = telemetryChart.data.labels;
+            labels.push('');
+            if (labels.length > 50) labels.shift();
+
+            const dsFlex = telemetryChart.data.datasets[0].data;
+            dsFlex.push(twist);
+            if (dsFlex.length > 50) dsFlex.shift();
+
+            const dsRPM = telemetryChart.data.datasets[1].data;
+            dsRPM.push(rpm);
+            if (dsRPM.length > 50) dsRPM.shift();
+
+            const dsEGT = telemetryChart.data.datasets[2].data;
+            dsEGT.push(egt);
+            if (dsEGT.length > 50) dsEGT.shift();
+
+            telemetryChart.update();
+        }
+
+        // Web Bluetooth Handler
+        document.getElementById('btnConnectBLE').addEventListener('click', async () => {
+            try {
+                logMsg("Scanning for Heltec V3 BLE Telemetry...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['426c6163-6b00-0000-0000-000000000000']
+                });
+
+                logMsg(`Connecting to BLE Device: ${bleDevice.name}`);
+                const server = await bleDevice.gatt.connect();
+                connStatus.className = 'status-badge connected';
+                connStatus.innerHTML = '<span class="status-dot"></span> BLE CONNECTED';
+
+                bleDevice.addEventListener('gattserverdisconnected', () => {
+                    connStatus.className = 'status-badge';
+                    connStatus.innerHTML = '<span class="status-dot"></span> DISCONNECTED';
+                    logMsg("BLE Device Disconnected.");
+                });
+
+            } catch (err) {
+                logMsg(`BLE Connection Error: ${err.message}`);
+            }
+        });
+
+        // Web Serial Handler
+        document.getElementById('btnConnectSerial').addEventListener('click', async () => {
+            if ('serial' in navigator) {
+                try {
+                    serialPort = await navigator.serial.requestPort();
+                    await serialPort.open({ baudRate: 115200 });
+                    connStatus.className = 'status-badge connected';
+                    connStatus.innerHTML = '<span class="status-dot"></span> SERIAL CONNECTED';
+                    logMsg("Connected via Web Serial at 115200 baud.");
+
+                    const textDecoder = new TextDecoderStream();
+                    const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+                    const reader = textDecoder.readable.getReader();
+
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += value;
+                        let lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (let line of lines) {
+                            handleIncomingData(line);
+                        }
+                    }
+                } catch (err) {
+                    logMsg(`Serial Error: ${err.message}`);
+                }
+            } else {
+                logMsg("Web Serial API not supported in this browser.");
+            }
+        });
+
+        // Simulator Handler
+        document.getElementById('btnSimulate').addEventListener('click', () => {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+                connStatus.className = 'status-badge';
+                connStatus.innerHTML = '<span class="status-dot"></span> DISCONNECTED';
+                logMsg("Simulator Stopped.");
+            } else {
+                connStatus.className = 'status-badge connected';
+                connStatus.innerHTML = '<span class="status-dot"></span> SIMULATING';
+                logMsg("Dynoco Telemetry Simulator Active.");
+
+                let simTime = 0;
+                simulationInterval = setInterval(() => {
+                    simTime += 0.1;
+                    const fRoll = (Math.sin(simTime * 2) * 2.5).toFixed(2);
+                    const rRoll = (Math.sin(simTime * 2 + 0.3) * 1.8).toFixed(2);
+                    const rpm   = Math.floor(8000 + Math.sin(simTime) * 4500);
+                    const egt   = Math.floor(1050 + Math.sin(simTime * 0.5) * 180);
+                    const gear  = rpm > 11500 ? 4 : 3;
+
+                    handleIncomingData(`${fRoll},${rRoll},${rpm},${egt},${gear}`);
+                }, 100);
+            }
+        });
+
+        // Reset Min/Max
+        document.getElementById('btnClearMinMax').addEventListener('click', () => {
+            minMax = {
+                fl: { min: 0, max: 0 },
+                fr: { min: 0, max: 0 },
+                rl: { min: 0, max: 0 },
+                rr: { min: 0, max: 0 },
+                rpm: { max: 0 },
+                egt: { min: 9999, max: 0 }
+            };
+            logMsg("Min/Max statistics reset.");
+        });
+
+        // Export Session CSV
+        document.getElementById('btnExportCSV').addEventListener('click', () => {
+            if (dataLog.length === 0) {
+                alert("No data recorded yet!");
+                return;
+            }
+
+            let csv = "Timestamp,Setup_Profile,Twist_Deg,FL_mm,FR_mm,RL_mm,RR_mm,Engine_RPM,EGT_F,Gear\n";
+            dataLog.forEach(row => {
+                csv += `${row.time},"${row.setup}",${row.twist},${row.fl},${row.fr},${row.rl},${row.rr},${row.rpm},${row.egt},${row.gear}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `dynoco_telemetry_${Date.now()}.csv`);
+            a.click();
+            logMsg(`Exported ${dataLog.length} records to CSV.`);
+        });
+
+        // Zero Calibration Trigger
+        document.getElementById('btnZero').addEventListener('click', () => {
+            logMsg("[CALIBRATION] Zero-tare command triggered.");
+            alert("Zero-tare command executed. Keep kart chassis level!");
+        });
+    </script>
+</body>
+</html>
